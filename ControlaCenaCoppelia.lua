@@ -75,11 +75,11 @@ end
 function alteraModo(uiControle,id,modoCB)
     -- estados 0 ou 2, desmarcado ou marcado respectivamente
     if modoCB==0 then
-        novoModo = "k" -- Modo manual
+        novoModo = "m" -- Modo manual
         print(novoModo)
         enviaStringSerial()
     else
-        novoModo = "m" -- Modo automatico
+        novoModo = "k" -- Modo automatico
         print(novoModo)
         enviaStringSerial()
     end
@@ -115,6 +115,8 @@ function andaDirecao(direcao) --religar simulacao
     elseif direcao == "d" then
         iori[3] = iori[3]-1.4*(math.pi/180);
         sim.setObjectOrientation(h,-1,{iori[1],iori[2],iori[3]})
+    elseif direcao == "q" then
+        paradaEmergencia()
     end
 end
 
