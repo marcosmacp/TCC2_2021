@@ -29,7 +29,7 @@ void movCurvaEsquerda(unsigned char);     // Aciona motores para desviar a esque
 //******************************************************************************************
 // Variaveis Globais
 String stringAux, leituraSerial, enviaSerial;
-int dist1, dist2, veloc, tempo, caminho, modo;
+int dist1, dist2, veloc, tempo, modo;
 char tecla, direcao = 'w';
 
 //******************************************************************************************
@@ -67,8 +67,9 @@ void loop() {
     else if (leituraSerial.startsWith("m")) { // modo manual
       modo = 2;
     }
-    else
+    else if (leituraSerial.endsWith("p")) {
       modo = 0;
+    }
 
     stringAux = leituraSerial.substring(2, 5); //separa a string recebida pegando 3 caracteres, como "125" na String inicial
     veloc = stringAux.toInt(); // converte a String separada para um inteiro (exemplo: 125)
@@ -79,14 +80,19 @@ void loop() {
   }
 
   if (modo == 1) { //modo AUTOMATICO
-    if ((dist1 != 0) && (dist2 != 0) && ((dist1 + dist2) >= 180)) { //180mm ou 18cm
+    if (tecla == 'q' || tecla == 'p'){
+      parar();
+    }
+    else if (((dist1 == 0) && (dist2 == 0)) || ((dist1 + dist2) >= 250)) { //180mm ou 18cm
       movAvante(veloc); // seguir em frente na velocidade recebida pela String
     }
     else
     {
       parar(); // parar o deslocamento para evitar colisao
       delay(tempo);
-      caminho = procuraCaminho(veloc, tempo); //procura o caminho mais livre, para a direita ou esquerda
+      movRe(veloc);
+      delay(tempo/2);
+      procuraCaminho(); //procura o caminho mais livre, para a direita ou esquerda
       delay(tempo);
     }
   }
@@ -98,7 +104,7 @@ void loop() {
         delay(tempo);
         break;
       case 's':
-        movRe(veloc - 30); // velocidade um pouco mais lenta
+        movRe(veloc); // velocidade um pouco mais lenta
         delay(tempo);
         break;
       case 'd':
@@ -118,7 +124,10 @@ void loop() {
     }
   }
   else
+  {
     parar();
+    limpaSerial();
+  }
 }
 
 //******************************************************************************************
@@ -131,8 +140,6 @@ void enviaString()
   Serial.print(dist2);
   Serial.print(",");
   Serial.println(direcao);
-  //enviaSerial = String(dist1) + "," + String(dist2) + "," + String(direcao);
-  //Serial.println(enviaSerial);
 }
 
 int sensor1(void)
@@ -213,36 +220,41 @@ void movCurvaEsquerda(unsigned char vel) // motor esquerdo girando para tras e d
   digitalWrite(motorDirFrente, HIGH);
 }
 
-int procuraCaminho(unsigned char vel, unsigned int temp) //procurar menor caminho para o carro desviar de obstaculos e em seguida continuar seguindo em frente
+void procuraCaminho() //procurar menor caminho para o carro desviar de obstaculos e em seguida continuar seguindo em frente
 { // velocidade (vel) e tempo (temp) passados para poder fazer movimentos mais rapidos ou mais lentos
 
   int distDir1, distDir2, distEsq1, distEsq2;
 
   movCurvaDireita(veloc);
-  delay(temp); //tempo de movimentacao do robo para a direita
+  delay(tempo); //tempo de movimentacao do robo para a direita
   parar(); //aguardar para fazer medicao da distancia para a direita
   distDir1 = sensor1();
   distDir2 = sensor2();
+  delay(100);
 
   movCurvaEsquerda(veloc);
-  delay(temp * 2); //tempo de movimentacao do robo para a esquerda, sendo o dobro do tempo da direita.
+  delay(tempo * 1.5); //tempo de movimentacao do robo para a esquerda, sendo o dobro do tempo da direita.
   //1x o tempo para poder retornar ao centro e outro tempo para poder girar para a esquerda
   parar(); //aguardar para fazer medicao da distancia para a esquerda
   distEsq1 = sensor1();
   distEsq2 = sensor2();
+  delay(100);
 
   if ((distDir1 + distEsq1) >= (distDir2 + distEsq2))
   { // verifica se a distancia lida para a direita e maior que a da esquerda
     movCurvaDireita(veloc);
-    delay(temp * 2); //tempo de movimentacao do robo para girar para a direita
+    delay(tempo * 1.5); //tempo de movimentacao do robo para girar para a direita
     parar();
-    return 1; // retorna caminho escolhido: direita
+    // retorna caminho escolhido: direita
   }
   else
   { // caso a distancia lida para a direita seja menor que a da esquerda
-    movCurvaEsquerda(veloc);
-    delay(temp); //tempo de movimentacao do robo para a direita
     parar();
-    return 1; // retorna caminho escolhido: direita
+    // retorna caminho escolhido: esquerda
   }
+}
+
+void limpaSerial()
+{
+  Serial.flush();
 }
