@@ -1,4 +1,4 @@
--- This code was originally provided by Eric Rohmer
+-- This code is provided by Eric Rohmer
 -- erohmer@gmail.com
 -- you can use it without any warranty and modify reuse and distribute it at will
 
@@ -19,7 +19,10 @@ baudrate=9600 -- definindo a velocidade de comunicacao pela porta (deve ser igua
 serial=sim.serialOpen(portNumber,baudrate) -- habilitando a porta serial
 
 --getting the cube handle and initial pose
+
+--ref = sim.getObjectHandle('Sphere')
 h=sim.getObjectHandle('Cuboid')
+refAbs = h
 cam=sim.getObjectHandle('DefaultCamera')
 ipos=sim.getObjectPosition(h,-1)
 iori=sim.getObjectOrientation(h,-1)
@@ -75,19 +78,19 @@ end
 function alteraModo(uiControle,id,modoCB)
     -- estados 0 ou 2, desmarcado ou marcado respectivamente
     if modoCB==0 then
-        novoModo = "k" -- Modo manual
+        novoModo = "m" -- Modo manual
         print(novoModo)
         enviaStringSerial()
     else
-        novoModo = "m" -- Modo automatico
+        novoModo = "k" -- Modo automatico
         print(novoModo)
         enviaStringSerial()
     end
 end
 
-function paradaEmergencia(uiControle)
+function paradaEmergencia(uiControle,id,newVal)
     solicitaParada = estadoParado+1
-    print(solicitaParada)
+    --print(newVal)
     if solicitaParada == 1 then
         tecla = 'q'
         enviaStringSerial()
@@ -105,16 +108,20 @@ end
 function andaDirecao(direcao) --religar simulacao
     if direcao == "w" then
         ipos[1] = ipos[1]+0.2;
-        sim.setObjectPosition(h,-1,{ipos[1],ipos[2],ipos[3]})
+        print("Ori Frente X",iori[1],", Y ",iori[2],", Z ",iori[3])
+        sim.setObjectPosition(h,refAbs,{ipos[1],ipos[2],ipos[3]})
     elseif direcao == "s" then
-        ipos[1] = ipos[1]-0.15;
-        sim.setObjectPosition(h,-1,{ipos[1],ipos[2],ipos[3]})
+        ipos[1] = ipos[1]-0.2;
+        print("Ori Tras X",iori[1],", Y ",iori[2],", Z ",iori[3])
+        sim.setObjectPosition(h,refAbs,{ipos[1],ipos[2],ipos[3]})
     elseif direcao == "a" then
         iori[3] = iori[3]+1.4*(math.pi/180);
-        sim.setObjectOrientation(h,-1,{iori[1],iori[2],iori[3]})
+        print("Ori Esquerda X",iori[1],", Y ",iori[2],", Z ",iori[3])
+        sim.setObjectOrientation(h,refAbs,{iori[1],iori[2],iori[3]})
     elseif direcao == "d" then
         iori[3] = iori[3]-1.4*(math.pi/180);
-        sim.setObjectOrientation(h,-1,{iori[1],iori[2],iori[3]})
+        print("Ori Direita X",iori[1],", Y ",iori[2],", Z ",iori[3])
+        sim.setObjectOrientation(h,refAbs,{iori[1],iori[2],iori[3]})
     end
 end
 
@@ -125,10 +132,19 @@ function enviaStringSerial() -- criada funcao para fazer juncao e envio unico do
     print(string.format("Enviou %s,%i,%i,%s",novoModo,novaVeloc,novoTempo,tecla))
 end
 
+function imprimeVal()
+    if val[3] ~= nil then
+        print(string.format("Recebeu %s,%s,%s",val[1], val[2], val[3]))
+    else
+        print(string.format("Recebeu %s,%s,%s",val[1], val[2], "nil"))
+    end
+end
+
 while (sim.getSimulationState()~=sim.simulation_advancing_abouttostop) do
 
     -- Aqui le-se uma linha a partir da Serial
     str=sim.serialRead(serial,100,true,'\r\n',100) -- armazena todo o texto em Str ate encontrar "\r\n"
+    --print(str)
     if str ~= nil then -- Verifica se o valor recebido nao e vazio (nulo = nil)
         local token -- cria uma variavel apenas nesse contexto chamada token 
         val={} -- cria um vetor (array) para armazenar as informacoes que chegarem
@@ -136,19 +152,21 @@ while (sim.getSimulationState()~=sim.simulation_advancing_abouttostop) do
         -- extraindo os valores na string Str separados por virgula
         for token in string.gmatch(str, "[^,]+") do -- para cada valor fora a virgula, sera salvo em token
             cpt=cpt+1 -- adiciona 1 para armazenar no proximo espaco do vetor
-            val[cpt]=token -- armazena cada token em um espaco do vetor
+            val[cpt]= token -- armazena cada token em um espaco do vetor
         end
+        val[1] = tonumber(val[1])
+        val[2] = tonumber(val[2])
     end
     
-    print(string.format("Recebeu %i,%i,%s",val[1]/1, val[2]/1, val[3]))
-    if val[3] ~= "" then
+    --imprimeVal()
+    if val[3] ~= nil then
         direcao = val[3]
         andaDirecao(direcao)
     end
     
     -- Aqui mostra os valores dos sensores
-    if (val[1]~= 0 and val[2]~=0) then
-        simUI.setLabelText(uiSensors,1,string.format("Sensor1: %.1f mm e Sensor2: %.1f mm",val[1]/1, val[2]/1))
+    if (val[1]~= 0 and val[2]~= 0) then
+        simUI.setLabelText(uiSensors,1,string.format("Sensor1: %.1f mm e Sensor2: %.1f mm",val[1], val[2]))
     end
     --if ((val[1]/10 <=120 or val[2]/10<=120) and (val[2]~= 0 and val[1]~=0)) then
     --    simUI.setLabelText(uiSensors,2,string.format("Objeto proximo!"))
@@ -157,31 +175,35 @@ while (sim.getSimulationState()~=sim.simulation_advancing_abouttostop) do
     message,auxiliaryData=sim.getSimulatorMessage()
 	while message~=-1 do
 		if (message==sim.message_keypress) then
-			print(auxiliaryData[1], ...)
+			--print(auxiliaryData[1], ...)
 			if (auxiliaryData[1]==string.byte('w')) then
                 tecla = 'w'
                 enviaStringSerial()
-                print('W')
+                --print('W')
                 ipos[1] = ipos[1]+0.2;
-                sim.setObjectPosition(h,-1,{ipos[1],ipos[2],ipos[3]})
+                print("Ori Frente X",iori[1],", Y ",iori[2],", Z ",iori[3])
+                sim.setObjectPosition(h,refAbs,{ipos[1],ipos[2],ipos[3]})
             elseif(auxiliaryData[1]==string.byte('s')) then
                 tecla = 's'
                 enviaStringSerial()
-                print('S')
-                ipos[1] = ipos[1]-0.15;
-                sim.setObjectPosition(h,-1,{ipos[1],ipos[2],ipos[3]})
+                --print('S')
+                ipos[1] = ipos[1]-0.2;
+                print("Ori Tras X",iori[1],", Y ",iori[2],", Z ",iori[3])
+                sim.setObjectPosition(h,refAbs,{ipos[1],ipos[2],ipos[3]})
             elseif(auxiliaryData[1]==string.byte('a')) then
                 tecla = 'a'
                 enviaStringSerial()
-                print('A')
+                --print('A')
                 iori[3] = iori[3]+1.4*(math.pi/180);
-                sim.setObjectOrientation(h,-1,{iori[1],iori[2],iori[3]})
+                print("Ori Esquerda X",iori[1],", Y ",iori[2],", Z ",iori[3])
+                sim.setObjectOrientation(h,refAbs,{iori[1],iori[2],iori[3]})
             elseif(auxiliaryData[1]==string.byte('d')) then
                 tecla = 'd'
                 enviaStringSerial()
-                print('D')
+                --print('D')
                 iori[3] = iori[3]-1.4*(math.pi/180);
-                sim.setObjectOrientation(h,-1,{iori[1],iori[2],iori[3]})
+                print("Ori Direita X",iori[1],", Y ",iori[2],", Z ",iori[3])
+                sim.setObjectOrientation(h,refAbs,{iori[1],iori[2],iori[3]})
             elseif(auxiliaryData[1]==string.byte(' ')) then
                 tecla = 'q'
                 enviaStringSerial()
@@ -196,7 +218,7 @@ while (sim.getSimulationState()~=sim.simulation_advancing_abouttostop) do
     sim.switchThread()
 end
 
-tecla = 'q'
+tecla = 'p'
 enviaStringSerial()
 print('FINALIZADO')
 
