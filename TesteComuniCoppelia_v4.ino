@@ -83,42 +83,42 @@ void loop() {
     if (tecla == 'q' || tecla == 'p'){
       parar();
     }
-    else if (((dist1 == 0) && (dist2 == 0)) || ((dist1 + dist2) >= 250)) { //180mm ou 18cm
+    else if (((dist1 == 0) && (dist2 == 0)) || ((dist1 + dist2) >= 250) || dist1 >=130 || dist2 >=130 ) { //130mm ou 13cm
       movAvante(veloc); // seguir em frente na velocidade recebida pela String
     }
-    else
+    else //desvia de obstaculo
     {
       parar(); // parar o deslocamento para evitar colisao
-      delay(tempo);
-      movRe(veloc);
       delay(tempo/2);
-      procuraCaminho(); //procura o caminho mais livre, para a direita ou esquerda
+      movRe(veloc);
       delay(tempo);
+      procuraCaminho(); //procura o caminho mais livre, para a direita ou esquerda
+      delay(tempo/2);
     }
   }
   else if (modo == 2) //modo MANUAL
   {
     switch (tecla) { //verifica qual foi a tecla recebida na String
-      case 'w':
+      case 'w': //direciona para frente
         movAvante(veloc);
         delay(tempo);
         break;
-      case 's':
-        movRe(veloc); // velocidade um pouco mais lenta
+      case 's': //direciona para trás
+        movRe(veloc);
         delay(tempo);
         break;
-      case 'd':
+      case 'd': //direciona para direita
         movCurvaDireita(veloc);
         delay(tempo);
         break;
-      case 'a':
+      case 'a': //direciona para esquerda
         movCurvaEsquerda(veloc);
         delay(tempo);
         break;
-      case 'q':
+      case 'q': //comando de parada
         parar();
         break;
-      default:
+      default: //outros comandos
         parar();
         break;
     }
@@ -133,13 +133,13 @@ void loop() {
 //******************************************************************************************
 // Implementacoes das Funcoes Auxiliares do Projeto
 
-void enviaString()
+void enviaString() //função para enviar os dados do Arduino em formato string
 {
-  Serial.print(dist1);
-  Serial.print(",");
-  Serial.print(dist2);
-  Serial.print(",");
-  Serial.println(direcao);
+  Serial.print(dist1); //envia a leitura do sensor esquerdo
+  Serial.print(","); // separa a informação por vírgula
+  Serial.print(dist2); //envia a leitura do sensor direito
+  Serial.print(","); // separa a informação por vírgula
+  Serial.println(direcao); //envia a direção que o Arduino esta seguindo
 }
 
 int sensor1(void)
@@ -170,14 +170,14 @@ void parar() // nenhum dos motores gira
 
 void movAvante(unsigned char vel) //ambos os motores giram para a frente do carro
 { //velocidade (vel) passado para poder fazer movimentos mais rapidos ou mais lentos
-  direcao = 'w';
-  enviaString();
-  analogWrite(ENA, vel);
-  analogWrite(ENB, vel);
+  direcao = 'w'; //seguir para frente
+  enviaString(); //envia os dados via Serial, para leitura do Coppelia
+  analogWrite(ENA, vel); //habilita o motor esquerdo na velocidade definida
+  analogWrite(ENB, vel);//habilita o motor direto na velocidade definida
 
-  digitalWrite(motorEsqTras, LOW);
-  digitalWrite(motorEsqFrente, HIGH);
-  digitalWrite(motorDirTras, LOW);
+  digitalWrite(motorEsqTras, LOW); //indica o sentido da corrente para o motor esquerdo
+  digitalWrite(motorEsqFrente, HIGH); 
+  digitalWrite(motorDirTras, LOW); //indica o sentido da corrente para o motor direito
   digitalWrite(motorDirFrente, HIGH);
 }
 
@@ -231,19 +231,21 @@ void procuraCaminho() //procurar menor caminho para o carro desviar de obstaculo
   distDir1 = sensor1();
   distDir2 = sensor2();
   delay(100);
+  enviaString();
 
   movCurvaEsquerda(veloc);
-  delay(tempo * 1.5); //tempo de movimentacao do robo para a esquerda, sendo o dobro do tempo da direita.
+  delay(tempo * 1.65); //tempo de movimentacao do robo para a esquerda, sendo o dobro do tempo da direita.
   //1x o tempo para poder retornar ao centro e outro tempo para poder girar para a esquerda
   parar(); //aguardar para fazer medicao da distancia para a esquerda
   distEsq1 = sensor1();
   distEsq2 = sensor2();
   delay(100);
+  enviaString();
 
-  if ((distDir1 + distEsq1) >= (distDir2 + distEsq2))
+  if ((distDir1 + distEsq1) >= (distDir2 + distEsq2)) // direita > esquerda
   { // verifica se a distancia lida para a direita e maior que a da esquerda
     movCurvaDireita(veloc);
-    delay(tempo * 1.5); //tempo de movimentacao do robo para girar para a direita
+    delay(tempo * 1.65); //tempo de movimentacao do robo para girar para a direita
     parar();
     // retorna caminho escolhido: direita
   }
